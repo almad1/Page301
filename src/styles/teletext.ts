@@ -6,6 +6,7 @@ export const TeletextColors = {
   cyan: '#00FFFF',
   red: '#FF0000',
   white: '#FFFFFF',
+  blue: '#0000CC',
 };
 
 export const TeletextFonts = {

@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { Platform } from 'react-native';
-import { LiveScoreMatch, NormalisedMatch, League } from '../types';
+import { LiveScoreMatch, NormalisedMatch, League, GoalEvent } from '../types';
 
 const API_KEY = 'i3obDQOhV7mA4eIq';
 const API_SECRET = 'gHpFdaQ9l0zKvdmNhLZVBNdxVz7ZOPp5';
@@ -27,6 +27,22 @@ function normaliseLive(m: LiveScoreMatch): NormalisedMatch {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normaliseHistory(m: any): NormalisedMatch {
+  return {
+    id: Number(m.id),
+    home_name: m.home_name,
+    away_name: m.away_name,
+    score: m.score || m.ft_score || '',
+    status: 'FINISHED',
+    time: 'FT',
+    scheduled: m.scheduled || '',
+    competition_name: m.competition_name || '',
+    competition_id: Number(m.competition_id) || 0,
+    date: m.date || '',
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseFixture(f: any): NormalisedMatch {
   return {
     id: f.id,
@@ -47,9 +63,64 @@ export const liveScoreAPI = {
     try {
       const response = await client.get('/scores/live.json', { params: auth });
       const matches: LiveScoreMatch[] = response.data?.data?.match || [];
-      return matches.map(normaliseLive);
+      const normalised = matches.map(normaliseLive);
+      // Fetch goal events for each live match in parallel
+      return Promise.all(
+        normalised.map(async (m) => ({
+          ...m,
+          goals: await liveScoreAPI.getMatchEvents(m.id),
+        }))
+      );
     } catch (error) {
       console.error('Error fetching live matches:', error);
+      return [];
+    }
+  },
+
+  async getMatchEvents(matchId: number): Promise<GoalEvent[]> {
+    try {
+      const response = await client.get('/scores/events.json', {
+        params: { ...auth, id: matchId },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const events: any[] = response.data?.data?.event || [];
+      return events
+        .filter((e) => e.event === 'GOAL' || e.event === 'OWN_GOAL')
+        .map((e) => ({
+          player: e.player as string,
+          time: e.time as string,
+          homeAway: e.home_away as 'h' | 'a',
+          ownGoal: e.event === 'OWN_GOAL',
+        }));
+    } catch {
+      return [];
+    }
+  },
+
+  async getTodayHistoryMatches(todayDate: string): Promise<NormalisedMatch[]> {
+    try {
+      // Fetch page 1 to get total_pages count
+      const first = await client.get('/scores/history.json', { params: auth });
+      const totalPages: number = first.data?.data?.total_pages || 1;
+
+      // Fetch last 5 pages in parallel to capture today's finished matches
+      const pages = await Promise.all(
+        Array.from({ length: 5 }, (_, i) => Math.max(1, totalPages - i)).map((page) =>
+          client
+            .get('/scores/history.json', { params: { ...auth, page } })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .then((r): any[] => r.data?.data?.match || [])
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .catch((): any[] => [])
+        )
+      );
+
+      return pages.flat()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((m: any) => m.date === todayDate)
+        .map(normaliseHistory);
+    } catch (error) {
+      console.error('Error fetching today history:', error);
       return [];
     }
   },

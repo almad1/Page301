@@ -1,8 +1,8 @@
 const http = require('http');
 const https = require('https');
 
-const TARGET_HOST = 'api.football-data.org';
-const TARGET_BASE = '/v4';
+const TARGET_HOST = 'livescore-api.com';
+const TARGET_BASE = '/api-client';
 
 http.createServer((req, res) => {
   // Handle CORS preflight
@@ -16,13 +16,17 @@ http.createServer((req, res) => {
     return;
   }
 
+  const forwardHeaders = { ...req.headers };
+  delete forwardHeaders['origin'];
+  delete forwardHeaders['referer'];
+
   const options = {
     hostname: TARGET_HOST,
     port: 443,
     path: TARGET_BASE + req.url,
     method: req.method,
     headers: {
-      ...req.headers,
+      ...forwardHeaders,
       host: TARGET_HOST,
     },
   };

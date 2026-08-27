@@ -1,55 +1,51 @@
-export interface Match {
+export interface LiveScoreMatch {
   id: number;
-  utcDate: string;
-  status: 'TIMED' | 'LIVE' | 'IN_PLAY' | 'PAUSED' | 'FINISHED' | 'POSTPONED' | 'CANCELLED' | 'SUSPENDED';
-  stage: string;
-  matchday?: number;
-  homeTeam: Team;
-  awayTeam: Team;
-  score: Score;
-  odds?: object;
-  referees: Referee[];
+  time: string;
+  home_name: string;
+  away_name: string;
+  home_id: number;
+  away_id: number;
+  score: string;
+  ft_score: string;
+  ht_score: string;
+  et_score: string;
+  ps_score: string;
+  competition_name: string;
+  competition_id: number;
+  league_id: number;
+  scheduled: string;
+  date: string;
+  status: string;
+  location: string;
+  has_lineups: boolean;
+  fixture_id: number;
+  added: string;
+  last_changed: string;
 }
 
-export interface Team {
+export interface GoalEvent {
+  player: string;
+  time: string;
+  homeAway: 'h' | 'a';
+  ownGoal: boolean;
+}
+
+export interface NormalisedMatch {
   id: number;
+  home_name: string;
+  away_name: string;
+  score: string;
+  status: string;
+  time: string;
+  scheduled: string;
+  competition_name: string;
+  competition_id: number;
+  date: string;
+  goals?: GoalEvent[];
+}
+
+export interface League {
+  id: string;
   name: string;
-  shortName?: string;
-  tla: string;
-  crest?: string;
-}
-
-export interface Score {
-  winner?: string;
-  duration: string;
-  fullTime: { home: number | null; away: number | null };
-  halfTime: { home: number | null; away: number | null };
-}
-
-export interface Referee {
-  id: number;
-  name: string;
-  type: string;
-  nationality: string;
-}
-
-export interface LeagueStanding {
-  position: number;
-  team: Team;
-  playedGames: number;
-  won: number;
-  draw: number;
-  lost: number;
-  points: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  goalDifference: number;
-}
-
-export interface Competition {
-  id: number;
-  name: string;
-  code: string;
-  areaName: string;
-  currentSeason: { id: number; startDate: string; endDate: string };
+  country_id: string;
 }

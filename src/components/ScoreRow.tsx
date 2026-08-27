@@ -1,86 +1,135 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Match } from '../types';
+import { View, Text, StyleSheet } from 'react-native';
+import { NormalisedMatch, GoalEvent } from '../types';
 import { TeletextColors, TeletextFonts } from '../styles/teletext';
 
 interface ScoreRowProps {
-  match: Match;
-  onPress?: () => void;
+  match: NormalisedMatch;
 }
 
-export const ScoreRow: React.FC<ScoreRowProps> = ({ match, onPress }) => {
-  const homeScore = match.score.fullTime.home !== null ? match.score.fullTime.home : '-';
-  const awayScore = match.score.fullTime.away !== null ? match.score.fullTime.away : '-';
-  const isLive = match.status === 'LIVE' || match.status === 'IN_PLAY' || match.status === 'PAUSED';
-  const kickOff = new Date(match.utcDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const status = match.status === 'FINISHED' ? 'FT' : isLive ? 'LIVE' : kickOff;
+function fmtScore(score: string): string {
+  // "2 - 1" → "2-1"
+  return score.replace(' - ', '-').replace(' - ', '-');
+}
+
+function fmtPlayer(g: GoalEvent): string {
+  const og = g.ownGoal ? ' og' : '';
+  return `${g.player}${og} ${g.time}`;
+}
+
+export const ScoreRow: React.FC<ScoreRowProps> = ({ match }) => {
+  const isLive = match.status === 'LIVE' ||
+    (match.time !== 'FT' && match.time !== 'SCHED' && match.score !== '');
+  const isFinished = match.status === 'FINISHED' || match.time === 'FT';
+  const isScheduled = !isLive && !isFinished;
+
+  const homeGoals: GoalEvent[] = (match.goals || []).filter((g) => g.homeAway === 'h');
+  const awayGoals: GoalEvent[] = (match.goals || []).filter((g) => g.homeAway === 'a');
+  const goalRows = Math.max(homeGoals.length, awayGoals.length);
+
+  let scoreDisplay: string;
+  let timeBadge: string;
+  if (isScheduled) {
+    scoreDisplay = 'v';
+    timeBadge = match.scheduled || '';
+  } else {
+    scoreDisplay = match.score ? fmtScore(match.score) : '?-?';
+    timeBadge = isFinished ? 'FT' : match.time;
+  }
+
+  const scoreStyle = isLive ? [styles.score, styles.scoreLive] : styles.score;
+  const teamStyle = isLive ? [styles.team, styles.teamLive] : styles.team;
 
   return (
-    <TouchableOpacity onPress={onPress} style={styles.container}>
-      <View style={styles.row}>
-        <Text style={styles.teamHome} numberOfLines={1}>
-          {match.homeTeam.shortName || match.homeTeam.tla}
-        </Text>
-        <View style={styles.scoreContainer}>
-          <Text style={[styles.score, isLive && styles.live]}>{homeScore}</Text>
-          <Text style={styles.status}>{status}</Text>
-          <Text style={[styles.score, isLive && styles.live]}>{awayScore}</Text>
+    <View style={styles.container}>
+      {/* Main match row */}
+      <View style={styles.matchRow}>
+        <Text style={teamStyle} numberOfLines={1}>{match.home_name.toUpperCase()}</Text>
+        <View style={styles.scoreBox}>
+          <Text style={scoreStyle}>{scoreDisplay}</Text>
         </View>
-        <Text style={styles.teamAway} numberOfLines={1}>
-          {match.awayTeam.shortName || match.awayTeam.tla}
-        </Text>
+        <Text style={teamStyle} numberOfLines={1}>{match.away_name.toUpperCase()}</Text>
+        <Text style={[styles.badge, isLive && styles.badgeLive]}>{timeBadge}</Text>
       </View>
-    </TouchableOpacity>
+
+      {/* Scorer rows: home scorers left, away scorers right */}
+      {goalRows > 0 && (
+        <View style={styles.scorerSection}>
+          <View style={styles.scorerCol}>
+            {homeGoals.map((g, i) => (
+              <Text key={i} style={styles.scorer}>{fmtPlayer(g)}</Text>
+            ))}
+          </View>
+          <View style={styles.scorerColRight}>
+            {awayGoals.map((g, i) => (
+              <Text key={i} style={styles.scorer}>{fmtPlayer(g)}</Text>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 6,
+    paddingVertical: 5,
     paddingHorizontal: 4,
-    borderBottomColor: TeletextColors.cyan,
+    borderBottomColor: '#1a1a1a',
     borderBottomWidth: 1,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  teamHome: {
-    flex: 1,
-    fontSize: TeletextFonts.sizes.normal,
-    color: TeletextColors.textPrimary,
-    fontFamily: TeletextFonts.family,
-  },
-  teamAway: {
-    flex: 1,
-    textAlign: 'right',
-    fontSize: TeletextFonts.sizes.normal,
-    color: TeletextColors.textPrimary,
-    fontFamily: TeletextFonts.family,
-  },
-  scoreContainer: {
+  matchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 8,
   },
-  score: {
-    fontSize: TeletextFonts.sizes.large,
-    fontWeight: 'bold',
-    color: TeletextColors.textSecondary,
-    fontFamily: TeletextFonts.family,
-    width: 20,
-    textAlign: 'center',
-  },
-  status: {
-    fontSize: TeletextFonts.sizes.small,
+  team: {
+    flex: 1,
+    fontSize: TeletextFonts.sizes.normal,
     color: TeletextColors.cyan,
     fontFamily: TeletextFonts.family,
-    marginHorizontal: 4,
-    minWidth: 40,
-    textAlign: 'center',
+    fontWeight: 'bold',
   },
-  live: {
+  teamLive: {
     color: TeletextColors.red,
+  },
+  scoreBox: {
+    width: 52,
+    alignItems: 'center',
+  },
+  score: {
+    color: TeletextColors.textSecondary,
+    fontFamily: TeletextFonts.family,
+    fontSize: TeletextFonts.sizes.normal,
+    fontWeight: 'bold',
+  },
+  scoreLive: {
+    color: TeletextColors.red,
+  },
+  badge: {
+    width: 36,
+    textAlign: 'right',
+    color: TeletextColors.white,
+    fontFamily: TeletextFonts.family,
+    fontSize: TeletextFonts.sizes.small,
+    fontWeight: 'bold',
+  },
+  badgeLive: {
+    color: TeletextColors.red,
+  },
+  scorerSection: {
+    flexDirection: 'row',
+    marginTop: 1,
+    paddingLeft: 2,
+  },
+  scorerCol: {
+    flex: 1,
+  },
+  scorerColRight: {
+    flex: 1,
+  },
+  scorer: {
+    color: TeletextColors.white,
+    fontFamily: TeletextFonts.family,
+    fontSize: TeletextFonts.sizes.small,
   },
 });
