@@ -2,8 +2,8 @@
   "expo": {
     "name": "Page301",
     "slug": "teletext-scores",
-    "version": "1.0.4",
-    "versionCode": 8,
+    "version": "1.0.5",
+    "versionCode": 9,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
