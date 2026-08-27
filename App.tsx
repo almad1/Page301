@@ -4,13 +4,14 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import { useFonts } from 'expo-font';
-import { CourierPrime_700Bold } from '@expo-google-fonts/courier-prime';
 import { store } from './src/store';
 import { LiveScoresScreen } from './src/screens/LiveScoresScreen';
 import { TeletextColors } from './src/styles/teletext';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ CourierPrime_700Bold });
+  const [fontsLoaded] = useFonts({
+    CourierPrime_700Bold: require('./assets/fonts/CourierPrime_700Bold.ttf'),
+  });
 
   if (!fontsLoaded) {
     return (

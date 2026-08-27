@@ -65,7 +65,6 @@ const styles = StyleSheet.create({
     color: TeletextColors.textSecondary,
     fontFamily: TeletextFonts.family,
     fontSize: 32,
-    fontWeight: 'bold',
     letterSpacing: 8,
   },
   divider: {

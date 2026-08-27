@@ -28,7 +28,6 @@ export const TeletextStyles = {
   },
   header: {
     fontSize: TeletextFonts.sizes.xl,
-    fontWeight: 'bold' as const,
     color: TeletextColors.orange,
     fontFamily: TeletextFonts.family,
     marginBottom: 10,

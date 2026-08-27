@@ -195,7 +195,6 @@ const styles = StyleSheet.create({
     color: TeletextColors.background,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.small,
-    fontWeight: 'bold',
     letterSpacing: 1,
   },
   statusText: {
@@ -223,7 +222,6 @@ const styles = StyleSheet.create({
     color: TeletextColors.background,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.normal,
-    fontWeight: 'bold',
   },
   navDate: {
     color: TeletextColors.textSecondary,
@@ -238,7 +236,6 @@ const styles = StyleSheet.create({
   },
   refreshButtonText: {
     color: TeletextColors.background,
-    fontWeight: 'bold',
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.normal,
   },

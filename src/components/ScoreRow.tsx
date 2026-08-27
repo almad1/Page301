@@ -87,7 +87,6 @@ const styles = StyleSheet.create({
     fontSize: TeletextFonts.sizes.normal,
     color: TeletextColors.cyan,
     fontFamily: TeletextFonts.family,
-    fontWeight: 'bold',
   },
   teamLive: {
     color: TeletextColors.red,
@@ -100,7 +99,6 @@ const styles = StyleSheet.create({
     color: TeletextColors.textSecondary,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.normal,
-    fontWeight: 'bold',
   },
   scoreLive: {
     color: TeletextColors.red,
@@ -111,7 +109,6 @@ const styles = StyleSheet.create({
     color: TeletextColors.white,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.small,
-    fontWeight: 'bold',
   },
   badgeLive: {
     color: TeletextColors.red,
