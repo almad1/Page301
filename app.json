@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "teletext-scores",
+    "name": "Page301",
     "slug": "teletext-scores",
-    "version": "1.0.0",
+    "version": "1.0.3",
+    "versionCode": 7,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -10,8 +11,9 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.page301.footballscores",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +22,17 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-splash-screen",
+      ["expo-font", {
+        "fonts": ["./assets/fonts/Teletext50.otf"]
+      }]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6e49c94a-96fb-44aa-ac47-ab88c3e5298c"
+      }
     }
   }
 }
