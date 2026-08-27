@@ -49,3 +49,16 @@ export interface League {
   name: string;
   country_id: string;
 }
+
+export interface TableEntry {
+  position: number;
+  team_name: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goals_for: number;
+  goals_against: number;
+  goal_difference: number;
+  points: number;
+}

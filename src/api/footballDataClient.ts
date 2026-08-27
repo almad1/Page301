@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { Platform } from 'react-native';
-import { LiveScoreMatch, NormalisedMatch, League, GoalEvent } from '../types';
+import { LiveScoreMatch, NormalisedMatch, League, GoalEvent, TableEntry } from '../types';
 
 const API_KEY = 'i3obDQOhV7mA4eIq';
 const API_SECRET = 'gHpFdaQ9l0zKvdmNhLZVBNdxVz7ZOPp5';
@@ -164,6 +164,31 @@ export const liveScoreAPI = {
       return response.data?.data?.league || [];
     } catch (error) {
       console.error('Error fetching leagues:', error);
+      return [];
+    }
+  },
+
+  async getLeagueTable(competitionId: number): Promise<TableEntry[]> {
+    try {
+      const response = await client.get('/leagues/table.json', {
+        params: { ...auth, id: competitionId },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows: any[] = response.data?.data?.table || [];
+      return rows.map((r) => ({
+        position: Number(r.position),
+        team_name: r.team_name || r.name || '',
+        played: Number(r.played ?? r.games_played ?? 0),
+        won: Number(r.won ?? 0),
+        drawn: Number(r.drawn ?? r.draw ?? 0),
+        lost: Number(r.lost ?? 0),
+        goals_for: Number(r.goals_for ?? r.goals_scored ?? 0),
+        goals_against: Number(r.goals_against ?? r.goals_conceded ?? 0),
+        goal_difference: Number(r.goal_difference ?? r.goal_diff ?? 0),
+        points: Number(r.points ?? r.pts ?? 0),
+      }));
+    } catch (error) {
+      console.error('Error fetching league table:', error);
       return [];
     }
   },

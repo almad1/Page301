@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, Text, StyleSheet,
   TouchableOpacity, RefreshControl,
@@ -14,6 +14,7 @@ import {
 } from '../store/scoresSlice';
 import { TeletextHeader } from '../components/TeletextHeader';
 import { ScoreRow } from '../components/ScoreRow';
+import { LeagueTableModal } from '../components/LeagueTableModal';
 import { TeletextColors, TeletextStyles, TeletextFonts } from '../styles/teletext';
 
 function shiftDate(dateStr: string, days: number): string {
@@ -94,6 +95,7 @@ export const LiveScoresScreen: React.FC = () => {
   } = useSelector((state: RootState) => state.scores);
 
   const today = todayStr();
+  const [tableComp, setTableComp] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     dispatch(fetchLiveMatches());
@@ -136,11 +138,16 @@ export const LiveScoresScreen: React.FC = () => {
         {isLoading && grouped.length === 0 ? (
           <Text style={styles.statusText}>LOADING...</Text>
         ) : grouped.length > 0 ? (
-          grouped.map(({ competition, matches }) => (
-            <View key={competition}>
-              <View style={styles.competitionHeader}>
+          grouped.map(({ competition, id, matches }) => (
+            <View key={id}>
+              <TouchableOpacity
+                style={styles.competitionHeader}
+                onPress={() => setTableComp({ id, name: competition })}
+                activeOpacity={0.7}
+              >
                 <Text style={styles.competitionTitle}>{competition.toUpperCase()}</Text>
-              </View>
+                <Text style={styles.competitionArrow}>▶</Text>
+              </TouchableOpacity>
               {matches.map((m) => <ScoreRow key={m.id} match={m} />)}
             </View>
           ))
@@ -157,7 +164,7 @@ export const LiveScoresScreen: React.FC = () => {
         >
           <Text style={styles.navText}>◄ PREV</Text>
         </TouchableOpacity>
-        <Text style={styles.navDate}>{selectedDate}</Text>
+        <Text style={styles.navDate}>{selectedDate === today ? 'Today' : selectedDate}</Text>
         <TouchableOpacity
           style={styles.navButton}
           onPress={() => dispatch(setSelectedDate(shiftDate(selectedDate, +1)))}
@@ -169,6 +176,14 @@ export const LiveScoresScreen: React.FC = () => {
       <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
         <Text style={styles.refreshButtonText}>⟳ REFRESH</Text>
       </TouchableOpacity>
+
+      {tableComp && (
+        <LeagueTableModal
+          competitionId={tableComp.id}
+          competitionName={tableComp.name}
+          onClose={() => setTableComp(null)}
+        />
+      )}
     </View>
   );
 };
@@ -190,12 +205,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 2,
     marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   competitionTitle: {
     color: TeletextColors.background,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.small,
     letterSpacing: 1,
+  },
+  competitionArrow: {
+    color: TeletextColors.background,
+    fontFamily: TeletextFonts.family,
+    fontSize: TeletextFonts.sizes.small,
+    opacity: 0.6,
   },
   statusText: {
     fontSize: TeletextFonts.sizes.normal,
