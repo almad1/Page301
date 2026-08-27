@@ -1,42 +1,47 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { footballDataAPI } from '../api/footballDataClient';
-import { Match, LeagueStanding } from '../types';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { liveScoreAPI } from '../api/footballDataClient';
+import { NormalisedMatch } from '../types';
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export const fetchLiveMatches = createAsyncThunk(
   'scores/fetchLiveMatches',
-  async () => {
-    return await footballDataAPI.getLiveMatches();
-  }
+  async () => liveScoreAPI.getLiveMatches()
 );
 
-export const fetchStandings = createAsyncThunk(
-  'scores/fetchStandings',
-  async (competitionCode: string) => {
-    return await footballDataAPI.getStandings(competitionCode);
-  }
-);
-
-export const fetchCompetitionMatches = createAsyncThunk(
-  'scores/fetchCompetitionMatches',
-  async (competitionCode: string) => {
-    return await footballDataAPI.getCompetitionMatches(competitionCode);
+export const fetchFixtures = createAsyncThunk(
+  'scores/fetchFixtures',
+  async (date: string, { getState }) => {
+    const state = getState() as { scores: ScoresState };
+    if (state.scores.fixturesCache[date]) {
+      return { date, fixtures: state.scores.fixturesCache[date], cached: true };
+    }
+    const fixtures = await liveScoreAPI.getFixtures(date);
+    return { date, fixtures, cached: false };
   }
 );
 
 interface ScoresState {
-  liveMatches: Match[];
-  standings: Record<string, LeagueStanding[]>;
-  competitionMatches: Record<string, Match[]>;
+  liveMatches: NormalisedMatch[];
+  fixtures: NormalisedMatch[];
+  fixturesCache: Record<string, NormalisedMatch[]>;
+  selectedDate: string;
   loading: boolean;
+  fixturesLoading: boolean;
   error: string | null;
   lastUpdated: number | null;
 }
 
 const initialState: ScoresState = {
   liveMatches: [],
-  standings: {},
-  competitionMatches: {},
+  fixtures: [],
+  fixturesCache: {},
+  selectedDate: todayStr(),
   loading: false,
+  fixturesLoading: false,
   error: null,
   lastUpdated: null,
 };
@@ -45,8 +50,12 @@ const scoresSlice = createSlice({
   name: 'scores',
   initialState,
   reducers: {
-    clearError: (state) => {
-      state.error = null;
+    clearError: (state) => { state.error = null; },
+    setSelectedDate: (state, action: PayloadAction<string>) => {
+      state.selectedDate = action.payload;
+    },
+    clearFixturesCache: (state) => {
+      state.fixturesCache = {};
     },
   },
   extraReducers: (builder) => {
@@ -64,14 +73,20 @@ const scoresSlice = createSlice({
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch matches';
       })
-      .addCase(fetchStandings.fulfilled, (state, action) => {
-        state.standings[action.meta.arg] = action.payload;
+      .addCase(fetchFixtures.pending, (state) => {
+        state.fixturesLoading = true;
       })
-      .addCase(fetchCompetitionMatches.fulfilled, (state, action) => {
-        state.competitionMatches[action.meta.arg] = action.payload;
+      .addCase(fetchFixtures.fulfilled, (state, action) => {
+        const { date, fixtures } = action.payload;
+        state.fixtures = fixtures;
+        state.fixturesCache[date] = fixtures;
+        state.fixturesLoading = false;
+      })
+      .addCase(fetchFixtures.rejected, (state) => {
+        state.fixturesLoading = false;
       });
   },
 });
 
-export const { clearError } = scoresSlice.actions;
+export const { clearError, setSelectedDate, clearFixturesCache } = scoresSlice.actions;
 export default scoresSlice.reducer;
