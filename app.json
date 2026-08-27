@@ -3,6 +3,7 @@
     "name": "teletext-scores",
     "slug": "teletext-scores",
     "version": "1.0.0",
+    "versionCode": 3,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

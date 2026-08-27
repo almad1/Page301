@@ -2,6 +2,11 @@
   "name": "teletext-scores",
   "version": "1.0.0",
   "main": "index.ts",
+  "scripts": {
+    "proxy": "node proxy-server.js",
+    "build:apk": "bash scripts/build-apk.sh",
+    "gen:icon": "node scripts/generate-icon.js"
+  },
   "dependencies": {
     "@expo-google-fonts/share-tech-mono": "^0.4.1",
     "@expo-google-fonts/vt323": "^0.4.1",
@@ -29,6 +34,7 @@
     "@types/react": "~19.2.2",
     "express": "^5.2.1",
     "http-proxy-middleware": "^3.0.7",
+    "jimp": "^1.6.1",
     "typescript": "~6.0.3"
   },
   "scripts": {
