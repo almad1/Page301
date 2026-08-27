@@ -23,24 +23,25 @@ function groupAndSort(matches: NormalisedMatch[], europeanOnly = false) {
     ? matches.filter((m) => isEuropean(m.competition_id, m.competition_name))
     : matches;
 
-  const groups: Record<string, { id: number; matches: NormalisedMatch[] }> = {};
+  // Key by competition_id so leagues with identical names (e.g. many "Premier League"s) stay separate
+  const groups: Record<number, { name: string; matches: NormalisedMatch[] }> = {};
   for (const m of filtered) {
-    const key = m.competition_name || 'Other';
-    if (!groups[key]) groups[key] = { id: m.competition_id, matches: [] };
-    groups[key].matches.push(m);
+    const id = m.competition_id;
+    if (!groups[id]) groups[id] = { name: m.competition_name || 'Other', matches: [] };
+    groups[id].matches.push(m);
   }
-  for (const key of Object.keys(groups)) {
-    groups[key].matches.sort((a, b) => a.scheduled.localeCompare(b.scheduled));
+  for (const id of Object.keys(groups)) {
+    groups[Number(id)].matches.sort((a, b) => a.scheduled.localeCompare(b.scheduled));
   }
   return Object.keys(groups)
+    .map(Number)
     .sort((a, b) => {
-      const pa = competitionPriority(groups[a].id, a);
-      const pb = competitionPriority(groups[b].id, b);
+      const pa = competitionPriority(a, groups[a].name);
+      const pb = competitionPriority(b, groups[b].name);
       if (pa !== pb) return pa - pb;
-      // Within same priority, sort by earliest kick-off
       return (groups[a].matches[0]?.scheduled ?? '').localeCompare(groups[b].matches[0]?.scheduled ?? '');
     })
-    .map((competition) => ({ competition, matches: groups[competition].matches }));
+    .map((id) => ({ competition: groups[id].name, matches: groups[id].matches }));
 }
 
 function formatDateLabel(dateStr: string): string {

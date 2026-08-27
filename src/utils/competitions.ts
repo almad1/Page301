@@ -4,7 +4,7 @@
 
 export const COMPETITION_PRIORITY: Record<number, number> = {
   // Irish
-  116: 10,  // League of Ireland Premier Division
+  11:  10,  // League of Ireland Premier Division (name: "Premier Division")
 
   // English
   2:   20,  // Premier League
