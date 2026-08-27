@@ -10,12 +10,12 @@ export const TeletextColors = {
 };
 
 export const TeletextFonts = {
-  family: 'Courier New',
+  family: 'VT323_400Regular',
   sizes: {
-    small: 10,
-    normal: 12,
-    large: 14,
-    xl: 16,
+    small: 16,
+    normal: 20,
+    large: 24,
+    xl: 28,
   },
 };
 

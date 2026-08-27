@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     color: TeletextColors.red,
   },
   scoreBox: {
-    width: 52,
+    width: 72,
     alignItems: 'center',
   },
   score: {
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     color: TeletextColors.red,
   },
   badge: {
-    width: 36,
+    width: 44,
     textAlign: 'right',
     color: TeletextColors.white,
     fontFamily: TeletextFonts.family,
