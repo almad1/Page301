@@ -4,13 +4,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 import { useFonts } from 'expo-font';
-import { ShareTechMono_400Regular } from '@expo-google-fonts/share-tech-mono';
+import { CourierPrime_700Bold } from '@expo-google-fonts/courier-prime';
 import { store } from './src/store';
 import { LiveScoresScreen } from './src/screens/LiveScoresScreen';
 import { TeletextColors } from './src/styles/teletext';
 
 export default function App() {
-  const [fontsLoaded] = useFonts({ ShareTechMono_400Regular });
+  const [fontsLoaded] = useFonts({ CourierPrime_700Bold });
 
   if (!fontsLoaded) {
     return (

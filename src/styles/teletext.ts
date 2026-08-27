@@ -10,12 +10,12 @@ export const TeletextColors = {
 };
 
 export const TeletextFonts = {
-  family: 'ShareTechMono_400Regular',
+  family: 'CourierPrime_700Bold',
   sizes: {
-    small: 12,
-    normal: 14,
-    large: 17,
-    xl: 20,
+    small: 11,
+    normal: 13,
+    large: 16,
+    xl: 19,
   },
 };
 
