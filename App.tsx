@@ -10,7 +10,7 @@ import { TeletextColors } from './src/styles/teletext';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
-    CourierPrime_700Bold: require('./assets/fonts/CourierPrime_700Bold.ttf'),
+    Teletext50: require('./assets/fonts/Teletext50.otf'),
   });
 
   if (!fontsLoaded) {

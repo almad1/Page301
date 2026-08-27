@@ -10,7 +10,7 @@ export const TeletextColors = {
 };
 
 export const TeletextFonts = {
-  family: 'CourierPrime_700Bold',
+  family: 'Teletext50',
   sizes: {
     small: 11,
     normal: 13,

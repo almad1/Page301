@@ -2,8 +2,8 @@
   "expo": {
     "name": "Page301",
     "slug": "teletext-scores",
-    "version": "1.0.2",
-    "versionCode": 6,
+    "version": "1.0.3",
+    "versionCode": 7,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -26,7 +26,7 @@
     "plugins": [
       "expo-splash-screen",
       ["expo-font", {
-        "fonts": ["./assets/fonts/CourierPrime_700Bold.ttf"]
+        "fonts": ["./assets/fonts/Teletext50.otf"]
       }]
     ],
     "extra": {
