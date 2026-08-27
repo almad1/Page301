@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   bannerText: {
     color: TeletextColors.textSecondary,
     fontFamily: TeletextFonts.family,
-    fontSize: 48,
+    fontSize: 32,
     fontWeight: 'bold',
     letterSpacing: 8,
   },

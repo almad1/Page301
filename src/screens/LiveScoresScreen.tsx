@@ -3,6 +3,7 @@ import {
   View, ScrollView, Text, StyleSheet,
   TouchableOpacity, RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NormalisedMatch } from '../types';
 import { isEuropean, competitionPriority } from '../utils/competitions';
 import { useDispatch, useSelector } from 'react-redux';
@@ -85,6 +86,7 @@ function buildCombinedMatches(
 }
 
 export const LiveScoresScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
   const {
     liveMatches, fixtures, todayResults, selectedDate,
@@ -120,7 +122,7 @@ export const LiveScoresScreen: React.FC = () => {
   const isLoading = loading || fixturesLoading || resultsLoading;
 
   return (
-    <View style={TeletextStyles.container}>
+    <View style={[TeletextStyles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <TeletextHeader />
 
       {/* Date label */}
