@@ -14,8 +14,8 @@ const auth = { key: API_KEY, secret: API_SECRET };
 function normaliseLive(m: LiveScoreMatch): NormalisedMatch {
   return {
     id: m.id,
-    home_name: m.home_name,
-    away_name: m.away_name,
+    home_name: decodeHtml(m.home_name),
+    away_name: decodeHtml(m.away_name),
     score: m.score || '',
     status: m.status,
     time: m.time,
@@ -30,8 +30,8 @@ function normaliseLive(m: LiveScoreMatch): NormalisedMatch {
 function normaliseHistory(m: any): NormalisedMatch {
   return {
     id: Number(m.id),
-    home_name: m.home_name,
-    away_name: m.away_name,
+    home_name: decodeHtml(m.home_name),
+    away_name: decodeHtml(m.away_name),
     score: m.score || m.ft_score || '',
     status: 'FINISHED',
     time: 'FT',
@@ -43,11 +43,21 @@ function normaliseHistory(m: any): NormalisedMatch {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function decodeHtml(s: string): string {
+  return s
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;/gi, "'")
+    .replace(/&apos;/gi, "'");
+}
+
 function normaliseFixture(f: any): NormalisedMatch {
   return {
     id: f.id,
-    home_name: f.home_name,
-    away_name: f.away_name,
+    home_name: decodeHtml(f.home_name),
+    away_name: decodeHtml(f.away_name),
     score: '',
     status: 'SCHEDULED',
     time: 'SCHED',
@@ -177,7 +187,7 @@ export const liveScoreAPI = {
       const rows: any[] = response.data?.data?.table || [];
       return rows.map((r) => ({
         position: Number(r.rank ?? r.position ?? 0),
-        team_name: r.name || r.team_name || '',
+        team_name: decodeHtml(r.name || r.team_name || ''),
         played: Number(r.matches ?? r.played ?? 0),
         won: Number(r.won ?? 0),
         drawn: Number(r.drawn ?? 0),
