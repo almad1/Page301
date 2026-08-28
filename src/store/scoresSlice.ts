@@ -16,8 +16,9 @@ export const fetchLiveMatches = createAsyncThunk(
 export const fetchTodayResults = createAsyncThunk(
   'scores/fetchTodayResults',
   async (date: string) => {
-    const historyMatches = await liveScoreAPI.getTodayHistoryMatches(date);
-    const european = historyMatches.filter((m) =>
+    const byDate = await liveScoreAPI.getRecentHistory(5);
+    const todayMatches = byDate[date] || [];
+    const european = todayMatches.filter((m) =>
       isEuropean(m.competition_id, m.competition_name)
     );
     return Promise.all(
@@ -26,6 +27,23 @@ export const fetchTodayResults = createAsyncThunk(
         goals: await liveScoreAPI.getMatchEvents(m.id).catch(() => []),
       }))
     );
+  }
+);
+
+export const fetchRecentHistory = createAsyncThunk(
+  'scores/fetchRecentHistory',
+  async (_, { getState }) => {
+    const state = getState() as { scores: ScoresState };
+    // Skip if already loaded
+    if (Object.keys(state.scores.historyCache).length > 0) return null;
+    const byDate = await liveScoreAPI.getRecentHistory(50);
+    // Filter to European matches only
+    const filtered: Record<string, NormalisedMatch[]> = {};
+    for (const [date, matches] of Object.entries(byDate)) {
+      const european = matches.filter((m) => isEuropean(m.competition_id, m.competition_name));
+      if (european.length > 0) filtered[date] = european;
+    }
+    return filtered;
   }
 );
 
@@ -46,6 +64,8 @@ interface ScoresState {
   fixtures: NormalisedMatch[];
   todayResults: NormalisedMatch[];
   fixturesCache: Record<string, NormalisedMatch[]>;
+  historyCache: Record<string, NormalisedMatch[]>;
+  historyLoading: boolean;
   selectedDate: string;
   loading: boolean;
   fixturesLoading: boolean;
@@ -59,6 +79,8 @@ const initialState: ScoresState = {
   fixtures: [],
   todayResults: [],
   fixturesCache: {},
+  historyCache: {},
+  historyLoading: false,
   selectedDate: todayStr(),
   loading: false,
   fixturesLoading: false,
@@ -78,6 +100,7 @@ const scoresSlice = createSlice({
     clearFixturesCache: (state) => {
       state.fixturesCache = {};
       state.todayResults = [];
+      state.historyCache = {};
     },
   },
   extraReducers: (builder) => {
@@ -116,9 +139,19 @@ const scoresSlice = createSlice({
       })
       .addCase(fetchFixtures.rejected, (state) => {
         state.fixturesLoading = false;
+      })
+      .addCase(fetchRecentHistory.pending, (state) => {
+        state.historyLoading = true;
+      })
+      .addCase(fetchRecentHistory.fulfilled, (state, action) => {
+        if (action.payload) state.historyCache = action.payload;
+        state.historyLoading = false;
+      })
+      .addCase(fetchRecentHistory.rejected, (state) => {
+        state.historyLoading = false;
       });
   },
 });
 
-export const { clearError, setSelectedDate, clearFixturesCache, } = scoresSlice.actions;
+export const { clearError, setSelectedDate, clearFixturesCache } = scoresSlice.actions;
 export default scoresSlice.reducer;

@@ -9,7 +9,7 @@ import { isEuropean, competitionPriority } from '../utils/competitions';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import {
-  fetchLiveMatches, fetchFixtures, fetchTodayResults,
+  fetchLiveMatches, fetchFixtures, fetchTodayResults, fetchRecentHistory,
   setSelectedDate, clearFixturesCache, todayStr,
 } from '../store/scoresSlice';
 import { TeletextHeader } from '../components/TeletextHeader';
@@ -60,27 +60,34 @@ function buildCombinedMatches(
   liveMatches: NormalisedMatch[],
   todayResults: NormalisedMatch[],
   fixtures: NormalisedMatch[],
+  historyCache: Record<string, NormalisedMatch[]>,
   selectedDate: string,
 ): NormalisedMatch[] {
   const today = todayStr();
   const isToday = selectedDate === today;
+  const isPast = selectedDate < today;
 
-  // Filter upcoming fixtures: for today, exclude matches whose scheduled time has passed
-  const upcomingFixtures = fixtures.filter((f) => {
-    if (f.date !== selectedDate) return false;
-    if (isToday && f.scheduled && f.scheduled <= currentHHMM()) return false;
-    return true;
-  });
-
-  // Combine: live overrides results overrides fixtures (by match ID where they overlap)
   const map = new Map<number, NormalisedMatch>();
-  for (const m of upcomingFixtures) map.set(m.id, m);
-  if (isToday) {
-    for (const m of todayResults) map.set(m.id, m);
-    for (const m of liveMatches) map.set(m.id, m);
+
+  if (isPast) {
+    // Past date: show history results (already European-filtered) + any fixtures as fallback
+    const pastFixtures = fixtures.filter((f) => f.date === selectedDate);
+    for (const m of pastFixtures) map.set(m.id, m);
+    for (const m of (historyCache[selectedDate] || [])) map.set(m.id, m);
+  } else {
+    // Today or future: show upcoming fixtures, then overlay results and live
+    const upcomingFixtures = fixtures.filter((f) => {
+      if (f.date !== selectedDate) return false;
+      if (isToday && f.scheduled && f.scheduled <= currentHHMM()) return false;
+      return true;
+    });
+    for (const m of upcomingFixtures) map.set(m.id, m);
+    if (isToday) {
+      for (const m of todayResults) map.set(m.id, m);
+      for (const m of liveMatches) map.set(m.id, m);
+    }
   }
 
-  // Keep only European competitions
   return Array.from(map.values()).filter((m) =>
     isEuropean(m.competition_id, m.competition_name)
   );
@@ -91,7 +98,7 @@ export const LiveScoresScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const {
     liveMatches, fixtures, todayResults, selectedDate,
-    loading, fixturesLoading, resultsLoading,
+    historyCache, loading, fixturesLoading, resultsLoading, historyLoading,
   } = useSelector((state: RootState) => state.scores);
 
   const today = todayStr();
@@ -100,6 +107,7 @@ export const LiveScoresScreen: React.FC = () => {
   useEffect(() => {
     dispatch(fetchLiveMatches());
     dispatch(fetchFixtures(selectedDate));
+    dispatch(fetchRecentHistory());
     if (selectedDate === today) dispatch(fetchTodayResults(today));
 
     const poll = setInterval(() => dispatch(fetchLiveMatches()), 60_000);
@@ -116,12 +124,13 @@ export const LiveScoresScreen: React.FC = () => {
     dispatch(clearFixturesCache());
     dispatch(fetchLiveMatches());
     dispatch(fetchFixtures(selectedDate));
+    dispatch(fetchRecentHistory());
     if (selectedDate === today) dispatch(fetchTodayResults(today));
   };
 
-  const combined = buildCombinedMatches(liveMatches, todayResults, fixtures, selectedDate);
+  const combined = buildCombinedMatches(liveMatches, todayResults, fixtures, historyCache, selectedDate);
   const grouped = groupAndSort(combined);
-  const isLoading = loading || fixturesLoading || resultsLoading;
+  const isLoading = loading || fixturesLoading || resultsLoading || historyLoading;
 
   return (
     <View style={[TeletextStyles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>

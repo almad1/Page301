@@ -107,15 +107,14 @@ export const liveScoreAPI = {
     }
   },
 
-  async getTodayHistoryMatches(todayDate: string): Promise<NormalisedMatch[]> {
+  async getRecentHistory(numPages = 50): Promise<Record<string, NormalisedMatch[]>> {
     try {
-      // Fetch page 1 to get total_pages count
       const first = await client.get('/scores/history.json', { params: auth });
       const totalPages: number = first.data?.data?.total_pages || 1;
 
-      // Fetch last 5 pages in parallel to capture today's finished matches
+      const pageNums = Array.from({ length: numPages }, (_, i) => Math.max(1, totalPages - i));
       const pages = await Promise.all(
-        Array.from({ length: 5 }, (_, i) => Math.max(1, totalPages - i)).map((page) =>
+        pageNums.map((page) =>
           client
             .get('/scores/history.json', { params: { ...auth, page } })
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,13 +124,17 @@ export const liveScoreAPI = {
         )
       );
 
-      return pages.flat()
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((m: any) => m.date === todayDate)
-        .map(normaliseHistory);
+      // Group by date
+      const byDate: Record<string, NormalisedMatch[]> = {};
+      for (const m of pages.flat()) {
+        const norm = normaliseHistory(m);
+        if (!byDate[norm.date]) byDate[norm.date] = [];
+        byDate[norm.date].push(norm);
+      }
+      return byDate;
     } catch (error) {
-      console.error('Error fetching today history:', error);
-      return [];
+      console.error('Error fetching recent history:', error);
+      return {};
     }
   },
 
