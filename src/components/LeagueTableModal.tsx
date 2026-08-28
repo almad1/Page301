@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     borderTopColor: TeletextColors.cyan,
   },
   header: {
-    backgroundColor: TeletextColors.cyan,
+    backgroundColor: TeletextColors.blue,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
-    color: TeletextColors.background,
+    color: TeletextColors.white,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.normal,
     letterSpacing: 1,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     backgroundColor: TeletextColors.background,
   },
   closeBtnText: {
-    color: TeletextColors.cyan,
+    color: TeletextColors.white,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.normal,
   },

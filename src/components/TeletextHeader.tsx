@@ -46,26 +46,26 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   pageNum: {
-    color: TeletextColors.textPrimary,
+    color: TeletextColors.textSecondary,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.normal,
   },
   datetime: {
-    color: TeletextColors.textPrimary,
+    color: TeletextColors.textSecondary,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.normal,
   },
   banner: {
     backgroundColor: TeletextColors.blue,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   bannerText: {
-    color: TeletextColors.textSecondary,
+    color: TeletextColors.textPrimary,
     fontFamily: TeletextFonts.family,
-    fontSize: 32,
-    letterSpacing: 8,
+    fontSize: 36,
+    letterSpacing: 10,
   },
   divider: {
     height: 2,
