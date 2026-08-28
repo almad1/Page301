@@ -3,6 +3,7 @@ import {
   Modal, View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TableEntry } from '../types';
 import { liveScoreAPI } from '../api/footballDataClient';
 import { TeletextColors, TeletextFonts } from '../styles/teletext';
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export const LeagueTableModal: React.FC<Props> = ({ competitionId, competitionName, onClose }) => {
+  const { bottom } = useSafeAreaInsets();
   const [table, setTable] = useState<TableEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -73,7 +75,7 @@ export const LeagueTableModal: React.FC<Props> = ({ competitionId, competitionNa
               <Text style={styles.statusText}>TABLE NOT AVAILABLE</Text>
             </View>
           ) : (
-            <ScrollView>
+            <ScrollView contentContainerStyle={{ paddingBottom: bottom + 8 }}>
               {table.map((row, i) => (
                 <View key={i} style={[styles.row, i % 2 === 1 && styles.rowAlt]}>
                   <Text style={[styles.cell, styles.posCell, styles.posText]}>{row.position}</Text>
