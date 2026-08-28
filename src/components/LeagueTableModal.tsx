@@ -7,6 +7,9 @@ import { TableEntry } from '../types';
 import { liveScoreAPI } from '../api/footballDataClient';
 import { TeletextColors, TeletextFonts } from '../styles/teletext';
 
+// Session-level cache: avoids re-fetching the same table within one app session
+const tableCache = new Map<number, TableEntry[]>();
+
 interface Props {
   competitionId: number;
   competitionName: string;
@@ -19,12 +22,18 @@ export const LeagueTableModal: React.FC<Props> = ({ competitionId, competitionNa
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    const cached = tableCache.get(competitionId);
+    if (cached) {
+      setTable(cached);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(false);
     liveScoreAPI.getLeagueTable(competitionId)
       .then((rows) => {
         if (rows.length === 0) setError(true);
-        else setTable(rows);
+        else { tableCache.set(competitionId, rows); setTable(rows); }
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
