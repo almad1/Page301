@@ -1,7 +1,10 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { liveScoreAPI } from '../api/footballDataClient';
 import { NormalisedMatch } from '../types';
-import { isEuropean } from '../utils/competitions';
+import { KNOWN_IDS } from '../utils/competitions';
+
+// Competitions whose scorers must load before anything else
+const PRIORITY_IDS = new Set([2, 244, 245, 350]); // PL, UCL, Europa League, Nations League
 
 export function todayStr(): string {
   const d = new Date();
@@ -10,40 +13,103 @@ export function todayStr(): string {
 
 export const fetchLiveMatches = createAsyncThunk(
   'scores/fetchLiveMatches',
-  async () => liveScoreAPI.getLiveMatches()
+  async () => liveScoreAPI.getLiveMatches(),
 );
 
 export const fetchTodayResults = createAsyncThunk(
   'scores/fetchTodayResults',
   async (date: string) => {
-    const byDate = await liveScoreAPI.getRecentHistory(5);
+    // 4 pages to handle busy fixture days (Bank Holidays, European matchdays)
+    const byDate = await liveScoreAPI.getRecentHistory(4);
     const todayMatches = byDate[date] || [];
-    const european = todayMatches.filter((m) =>
-      isEuropean(m.competition_id, m.competition_name)
-    );
-    return Promise.all(
-      european.map(async (m) => ({
-        ...m,
-        goals: await liveScoreAPI.getMatchEvents(m.id).catch(() => []),
-      }))
-    );
+    return todayMatches.filter((m) => KNOWN_IDS.has(m.competition_id));
   }
 );
 
-export const fetchRecentHistory = createAsyncThunk(
-  'scores/fetchRecentHistory',
-  async (_, { getState }) => {
+export const fetchHistoryForDate = createAsyncThunk(
+  'scores/fetchHistoryForDate',
+  async (date: string, { getState, dispatch }) => {
     const state = getState() as { scores: ScoresState };
-    // Skip if already loaded
-    if (Object.keys(state.scores.historyCache).length > 0) return null;
-    const byDate = await liveScoreAPI.getRecentHistory(50);
-    // Filter to European matches only
-    const filtered: Record<string, NormalisedMatch[]> = {};
-    for (const [date, matches] of Object.entries(byDate)) {
-      const european = matches.filter((m) => isEuropean(m.competition_id, m.competition_name));
-      if (european.length > 0) filtered[date] = european;
+    if (state.scores.historyCache[date]) return { date, matches: null };
+
+    // Primary: daily KV accumulated from live endpoint (has all competitions)
+    // Fallback: history endpoint (limited to a few competitions)
+    const daily = await liveScoreAPI.getDailyResults(date);
+    const fromHistory = daily.length === 0 ? await liveScoreAPI.getHistoryForDate(date) : [];
+    const european = [...daily, ...fromHistory].filter((m) => KNOWN_IDS.has(m.competition_id));
+
+    // Phase 1: show matches immediately, no scorers yet
+    dispatch(setHistoryCacheEntry({ date, matches: european }));
+
+    // Phase 2a: priority competitions first (PL, UCL, Europa League, Nations League)
+    const priority = european.filter((m) => PRIORITY_IDS.has(m.competition_id));
+    const others   = european.filter((m) => !PRIORITY_IDS.has(m.competition_id));
+
+    const priorityEnriched = priority.length > 0
+      ? await liveScoreAPI.batchEnrichWithEvents(priority, 5)
+      : [];
+
+    // Update store so priority scorers appear before the rest load
+    if (priorityEnriched.length > 0) {
+      dispatch(setHistoryCacheEntry({
+        date,
+        matches: european.map((m) => priorityEnriched.find((p) => p.id === m.id) ?? m),
+      }));
     }
-    return filtered;
+
+    // Phase 2b: remaining competitions (lower concurrency, non-blocking to the user)
+    const othersEnriched = others.length > 0
+      ? await liveScoreAPI.batchEnrichWithEvents(others, 3)
+      : [];
+
+    const allEnriched = [...priorityEnriched, ...othersEnriched];
+
+    // Phase 3: retry any non-zero-score match with no scorers — fire and forget
+    const needsRetry = allEnriched.filter((m) => {
+      if (!m.score) return false;
+      const parts = m.score.replace(/\s/g, '').split('-');
+      const total = parts.reduce((sum, p) => sum + (parseInt(p, 10) || 0), 0);
+      return total > 0 && (!m.goals || m.goals.length === 0);
+    });
+    if (needsRetry.length > 0) {
+      liveScoreAPI.batchEnrichWithEvents(needsRetry, 2).then((retried) => {
+        const updated = [...allEnriched];
+        for (const m of retried) {
+          if (m.goals && m.goals.length > 0) {
+            const idx = updated.findIndex((u) => u.id === m.id);
+            if (idx >= 0) updated[idx] = m;
+          }
+        }
+        dispatch(setHistoryCacheEntry({ date, matches: updated }));
+      }).catch(() => {});
+    }
+
+    return { date, matches: allEnriched };
+  }
+);
+
+// Lightweight background prefetch — populates caches without affecting loading flags.
+// Used to warm adjacent dates so navigation feels instant.
+export const prefetchDate = createAsyncThunk(
+  'scores/prefetchDate',
+  async (date: string, { getState, dispatch }) => {
+    const state = getState() as { scores: ScoresState };
+    const today = todayStr();
+    if (date >= today) {
+      if (!state.scores.fixturesCache[date]) dispatch(fetchFixtures(date));
+    } else {
+      if (!state.scores.historyCache[date]) {
+        try {
+          const daily = await liveScoreAPI.getDailyResults(date);
+          if (daily.length > 0) {
+            dispatch(setHistoryCacheEntry({
+              date,
+              matches: daily.filter((m) => KNOWN_IDS.has(m.competition_id)),
+            }));
+          }
+        } catch { /* prefetch failures are non-critical */ }
+      }
+    }
   }
 );
 
@@ -97,6 +163,9 @@ const scoresSlice = createSlice({
     setSelectedDate: (state, action: PayloadAction<string>) => {
       state.selectedDate = action.payload;
     },
+    setHistoryCacheEntry: (state, action: PayloadAction<{ date: string; matches: NormalisedMatch[] }>) => {
+      state.historyCache[action.payload.date] = action.payload.matches;
+    },
     clearFixturesCache: (state) => {
       state.fixturesCache = {};
       state.todayResults = [];
@@ -140,18 +209,19 @@ const scoresSlice = createSlice({
       .addCase(fetchFixtures.rejected, (state) => {
         state.fixturesLoading = false;
       })
-      .addCase(fetchRecentHistory.pending, (state) => {
+      .addCase(fetchHistoryForDate.pending, (state) => {
         state.historyLoading = true;
       })
-      .addCase(fetchRecentHistory.fulfilled, (state, action) => {
-        if (action.payload) state.historyCache = action.payload;
+      .addCase(fetchHistoryForDate.fulfilled, (state, action) => {
+        const { date, matches } = action.payload;
+        if (matches) state.historyCache[date] = matches;
         state.historyLoading = false;
       })
-      .addCase(fetchRecentHistory.rejected, (state) => {
+      .addCase(fetchHistoryForDate.rejected, (state) => {
         state.historyLoading = false;
       });
   },
 });
 
-export const { clearError, setSelectedDate, clearFixturesCache } = scoresSlice.actions;
+export const { clearError, setSelectedDate, setHistoryCacheEntry, clearFixturesCache } = scoresSlice.actions;
 export default scoresSlice.reducer;

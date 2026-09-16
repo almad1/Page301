@@ -2,32 +2,54 @@
   "expo": {
     "name": "Page301",
     "slug": "teletext-scores",
-    "version": "1.1.0",
-    "versionCode": 14,
+    "version": "1.4.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.page301.footballscores"
     },
     "android": {
       "package": "com.page301.footballscores",
+      "versionCode": 20,
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-splash-screen",
-      ["expo-font", {
-        "fonts": ["./assets/fonts/Teletext50.otf"]
-      }]
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/MODE7GX3.ttf"
+          ]
+        }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-1066434304168352~3364408746",
+          "iosAppId": "ca-app-pub-1066434304168352~4737929115"
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This allows Page301 to show you relevant ads and helps keep the app free."
+        }
+      ]
     ],
     "extra": {
       "eas": {

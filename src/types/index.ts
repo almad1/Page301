@@ -28,10 +28,24 @@ export interface GoalEvent {
   time: string;
   homeAway: 'h' | 'a';
   ownGoal: boolean;
+  penalty?: boolean;
+}
+
+export interface CardEvent {
+  player: string;
+  time: string;
+  homeAway: 'h' | 'a';
+  cardType: 'yellow' | 'red' | 'yellow_red';
+}
+
+export interface MatchEvents {
+  goals: GoalEvent[];
+  cards: CardEvent[];
 }
 
 export interface NormalisedMatch {
   id: number;
+  fixture_id?: number;  // populated for live matches; events endpoint uses this
   home_name: string;
   away_name: string;
   score: string;
@@ -42,6 +56,7 @@ export interface NormalisedMatch {
   competition_id: number;
   date: string;
   goals?: GoalEvent[];
+  cards?: CardEvent[];
 }
 
 export interface League {

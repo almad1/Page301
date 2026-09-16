@@ -7,10 +7,11 @@ export const TeletextColors = {
   red: '#FF0000',
   white: '#FFFFFF',
   blue: '#0000CC',
+  purple: '#5500BB',
 };
 
 export const TeletextFonts = {
-  family: 'Teletext50',
+  family: 'MODE7GX3',
   sizes: {
     small: 11,
     normal: 13,
@@ -23,7 +24,7 @@ export const TeletextStyles = {
   container: {
     flex: 1,
     backgroundColor: TeletextColors.background,
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
     paddingVertical: 10,
   },
   header: {

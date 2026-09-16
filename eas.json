@@ -11,6 +11,14 @@
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "ios": {}
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "allen.madsen@phorest.com"
       }
     }
   }

@@ -5,17 +5,21 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NormalisedMatch } from '../types';
-import { isEuropean, competitionPriority } from '../utils/competitions';
+import { KNOWN_IDS, competitionPriority } from '../utils/competitions';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import {
-  fetchLiveMatches, fetchFixtures, fetchTodayResults, fetchRecentHistory,
-  setSelectedDate, clearFixturesCache, todayStr,
+  fetchLiveMatches, fetchFixtures, fetchTodayResults, fetchHistoryForDate,
+  setSelectedDate, clearFixturesCache, todayStr, prefetchDate,
 } from '../store/scoresSlice';
 import { TeletextHeader } from '../components/TeletextHeader';
 import { ScoreRow } from '../components/ScoreRow';
+import { ColorButtons } from '../components/ColorButtons';
 import { LeagueTableModal } from '../components/LeagueTableModal';
 import { TeletextColors, TeletextStyles, TeletextFonts } from '../styles/teletext';
+import { useNav } from '../navigation/NavContext';
+import { dateForPage, getLeaguePage } from '../navigation/pages';
+import { AdBanner } from '../components/AdBanner';
 
 function shiftDate(dateStr: string, days: number): string {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -26,11 +30,6 @@ function shiftDate(dateStr: string, days: number): string {
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function currentHHMM(): string {
-  const n = new Date();
-  return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
 }
 
 function groupAndSort(matches: NormalisedMatch[]) {
@@ -46,14 +45,21 @@ function groupAndSort(matches: NormalisedMatch[]) {
   return Object.keys(groups)
     .map(Number)
     .sort((a, b) => {
-      const pa = competitionPriority(a, groups[a].name);
-      const pb = competitionPriority(b, groups[b].name);
+      const pa = competitionPriority(a);
+      const pb = competitionPriority(b);
       if (pa !== pb) return pa - pb;
       return (groups[a].matches[0]?.scheduled ?? '').localeCompare(
         groups[b].matches[0]?.scheduled ?? ''
       );
     })
     .map((id) => ({ competition: groups[id].name, id, matches: groups[id].matches }));
+}
+
+// Unique key per match regardless of which endpoint it came from.
+// The fixture and live endpoints use different numeric IDs for the same game,
+// so we can't use m.id — use competition + teams instead.
+function matchKey(m: NormalisedMatch): string {
+  return `${m.competition_id}|${m.home_name.toLowerCase()}|${m.away_name.toLowerCase()}`;
 }
 
 function buildCombinedMatches(
@@ -67,80 +73,110 @@ function buildCombinedMatches(
   const isToday = selectedDate === today;
   const isPast = selectedDate < today;
 
-  const map = new Map<number, NormalisedMatch>();
+  const map = new Map<string, NormalisedMatch>();
 
   if (isPast) {
-    // Past date: show history results (already European-filtered) + any fixtures as fallback
-    const pastFixtures = fixtures.filter((f) => f.date === selectedDate);
-    for (const m of pastFixtures) map.set(m.id, m);
-    for (const m of (historyCache[selectedDate] || [])) map.set(m.id, m);
+    for (const m of fixtures.filter((f) => f.date === selectedDate)) map.set(matchKey(m), m);
+    for (const m of (historyCache[selectedDate] || [])) map.set(matchKey(m), m);
   } else {
-    // Today or future: show upcoming fixtures, then overlay results and live
-    const upcomingFixtures = fixtures.filter((f) => {
-      if (f.date !== selectedDate) return false;
-      if (isToday && f.scheduled && f.scheduled <= currentHHMM()) return false;
-      return true;
-    });
-    for (const m of upcomingFixtures) map.set(m.id, m);
+    for (const m of fixtures.filter((f) => f.date === selectedDate)) map.set(matchKey(m), m);
     if (isToday) {
-      for (const m of todayResults) map.set(m.id, m);
-      for (const m of liveMatches) map.set(m.id, m);
+      // todayResults and liveMatches overwrite fixtures — they have live scores/status
+      for (const m of todayResults) map.set(matchKey(m), m);
+      for (const m of liveMatches) map.set(matchKey(m), m);
     }
   }
 
-  return Array.from(map.values()).filter((m) =>
-    isEuropean(m.competition_id, m.competition_name)
-  );
+  return Array.from(map.values()).filter((m) => KNOWN_IDS.has(m.competition_id));
 }
 
 export const LiveScoresScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
+  const { currentPage, navigate } = useNav();
   const {
     liveMatches, fixtures, todayResults, selectedDate,
-    historyCache, loading, fixturesLoading, resultsLoading, historyLoading,
+    historyCache, fixturesLoading, historyLoading,
   } = useSelector((state: RootState) => state.scores);
 
   const today = todayStr();
+  const minDate = shiftDate(today, -10);
   const [tableComp, setTableComp] = useState<{ id: number; name: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
+  // Set the selected date whenever we navigate to a score page (301/302/303)
+  useEffect(() => {
+    if (currentPage >= 301 && currentPage <= 303) {
+      dispatch(setSelectedDate(dateForPage(currentPage)));
+    }
+  }, [currentPage, dispatch]);
+
+  // Live match polling — independent of date
   useEffect(() => {
     dispatch(fetchLiveMatches());
-    dispatch(fetchFixtures(selectedDate));
-    dispatch(fetchRecentHistory());
-    if (selectedDate === today) dispatch(fetchTodayResults(today));
-
     const poll = setInterval(() => dispatch(fetchLiveMatches()), 60_000);
     return () => clearInterval(poll);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
+  // Date-based fetching — runs whenever selected date changes
   useEffect(() => {
-    dispatch(fetchFixtures(selectedDate));
-    if (selectedDate === today) dispatch(fetchTodayResults(today));
+    if (selectedDate < today) {
+      dispatch(fetchFixtures(selectedDate));
+      dispatch(fetchHistoryForDate(selectedDate));
+    } else {
+      void (async () => {
+        await dispatch(fetchFixtures(selectedDate));
+        if (selectedDate === today) dispatch(fetchTodayResults(today));
+      })();
+    }
   }, [dispatch, selectedDate, today]);
 
-  const handleRefresh = () => {
+  // Prefetch surrounding dates so navigation feels instant
+  useEffect(() => {
+    for (let i = 1; i <= 3; i++) {
+      dispatch(prefetchDate(shiftDate(selectedDate, i)));
+      dispatch(prefetchDate(shiftDate(selectedDate, -i)));
+    }
+  }, [dispatch, selectedDate]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
     dispatch(clearFixturesCache());
-    dispatch(fetchLiveMatches());
-    dispatch(fetchFixtures(selectedDate));
-    dispatch(fetchRecentHistory());
-    if (selectedDate === today) dispatch(fetchTodayResults(today));
+    try {
+      if (selectedDate < today) {
+        await Promise.all([
+          dispatch(fetchLiveMatches()),
+          dispatch(fetchHistoryForDate(selectedDate)),
+        ]);
+      } else {
+        await dispatch(fetchLiveMatches());
+        await dispatch(fetchFixtures(selectedDate));
+        if (selectedDate === today) await dispatch(fetchTodayResults(today));
+      }
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const combined = buildCombinedMatches(liveMatches, todayResults, fixtures, historyCache, selectedDate);
   const grouped = groupAndSort(combined);
-  const isLoading = loading || fixturesLoading || resultsLoading || historyLoading;
+  const isLoading = selectedDate < today ? (historyLoading || fixturesLoading) : fixturesLoading;
 
   return (
-    <View style={[TeletextStyles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[TeletextStyles.container, { paddingTop: insets.top, paddingBottom: 0 }]}>
       <TeletextHeader />
 
-      {/* Date label */}
       <Text style={styles.dateLabel}>{formatDateLabel(selectedDate)}</Text>
 
       <ScrollView
-        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={TeletextColors.cyan}
+            colors={[TeletextColors.cyan]}
+          />
+        }
         showsVerticalScrollIndicator={false}
         style={styles.scroll}
       >
@@ -151,7 +187,11 @@ export const LiveScoresScreen: React.FC = () => {
             <View key={id}>
               <TouchableOpacity
                 style={styles.competitionHeader}
-                onPress={() => setTableComp({ id, name: competition })}
+                onPress={() => {
+                  const lp = getLeaguePage(id);
+                  if (lp) navigate(lp.page);
+                  else setTableComp({ id, name: competition });
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={styles.competitionTitle}>{competition.toUpperCase()}</Text>
@@ -168,23 +208,22 @@ export const LiveScoresScreen: React.FC = () => {
       {/* Date navigation */}
       <View style={styles.navRow}>
         <TouchableOpacity
-          style={styles.navButton}
-          onPress={() => dispatch(setSelectedDate(shiftDate(selectedDate, -1)))}
+          style={[styles.navButton, selectedDate <= minDate && styles.navButtonDisabled]}
+          onPress={() => selectedDate > minDate && dispatch(setSelectedDate(shiftDate(selectedDate, -1)))}
         >
           <Text style={styles.navText}>◄ PREV</Text>
         </TouchableOpacity>
         <Text style={styles.navDate}>{selectedDate === today ? 'Today' : selectedDate}</Text>
         <TouchableOpacity
           style={styles.navButton}
-          onPress={() => dispatch(setSelectedDate(shiftDate(selectedDate, +1)))}
+          onPress={() => dispatch(setSelectedDate(shiftDate(selectedDate, 1)))}
         >
           <Text style={styles.navText}>NEXT ►</Text>
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
-        <Text style={styles.refreshButtonText}>⟳ REFRESH</Text>
-      </TouchableOpacity>
+      <AdBanner />
+      <ColorButtons />
 
       {tableComp && (
         <LeagueTableModal
@@ -198,14 +237,13 @@ export const LiveScoresScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-  },
+  scroll: { flex: 1 },
   dateLabel: {
     color: TeletextColors.cyan,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.small,
     textAlign: 'center',
+    paddingHorizontal: 8,
     paddingVertical: 3,
     letterSpacing: 1,
   },
@@ -252,6 +290,10 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     backgroundColor: TeletextColors.cyan,
   },
+  navButtonDisabled: {
+    backgroundColor: '#1a4444',
+    opacity: 0.5,
+  },
   navText: {
     color: TeletextColors.background,
     fontFamily: TeletextFonts.family,
@@ -259,17 +301,6 @@ const styles = StyleSheet.create({
   },
   navDate: {
     color: TeletextColors.textSecondary,
-    fontFamily: TeletextFonts.family,
-    fontSize: TeletextFonts.sizes.normal,
-  },
-  refreshButton: {
-    backgroundColor: TeletextColors.orange,
-    paddingVertical: 6,
-    marginTop: 4,
-    alignItems: 'center',
-  },
-  refreshButtonText: {
-    color: TeletextColors.background,
     fontFamily: TeletextFonts.family,
     fontSize: TeletextFonts.sizes.normal,
   },
